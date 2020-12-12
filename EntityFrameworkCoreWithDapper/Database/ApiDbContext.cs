@@ -15,7 +15,7 @@ namespace EntityFrameworkCoreWithDapper.Database
 
             builder.Entity<ProductEntity>(cfg =>
             {
-                cfg.ToTable("Products");
+                cfg.ToTable("Product");
 
                 cfg.HasKey(e => e.Id);
                 cfg.HasAlternateKey(e => e.ExternalId);
@@ -33,7 +33,26 @@ namespace EntityFrameworkCoreWithDapper.Database
                 cfg.Property(e => e.Name)
                     .IsRequired()
                     .HasMaxLength(128);
+            });
+
+            builder.Entity<PriceHistoryEntity>(cfg =>
+            {
+                cfg.ToTable("PriceHistory");
+
+                cfg.HasKey(e => e.Id);
+
+                cfg.HasIndex(e => e.CreatedOn);
+
+                cfg.Property(e => e.Id)
+                    .IsRequired()
+                    .ValueGeneratedOnAdd();
+                cfg.HasOne<ProductEntity>()
+                    .WithMany()
+                    .HasForeignKey(e => e.ProductId)
+                    .IsRequired();
                 cfg.Property(e => e.Price)
+                    .IsRequired();
+                cfg.Property(e => e.CreatedOn)
                     .IsRequired();
             });
         }
