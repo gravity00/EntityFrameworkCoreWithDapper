@@ -75,14 +75,29 @@ namespace EntityFrameworkCoreWithDapper.Controllers
         [HttpPost("price/multiply")]
         public async Task MultiplyPricesAsync([FromBody] MultiplyProductsPriceModel model, CancellationToken ct)
         {
-            //var products = await _context.Set<ProductEntity>().ToListAsync(ct);
+            var pricesHistory = await (
+                from p in _context.Set<ProductEntity>()
+                select new
+                {
+                    ProductId = p.Id,
+                    _context
+                        .Set<PriceHistoryEntity>()
+                        .Where(ph => ph.ProductId == p.Id)
+                        .OrderByDescending(ph => ph.CreatedOn)
+                        .First()
+                        .Price
+                }
+            ).ToListAsync(ct);
 
-            //foreach (var product in products)
-            //{
-            //    product.Price *= model.Factor;
-            //}
+            var now = DateTime.UtcNow;
+            await _context.Set<PriceHistoryEntity>().AddRangeAsync(pricesHistory.Select(ph => new PriceHistoryEntity
+            {
+                ProductId = ph.ProductId,
+                Price = ph.Price * model.Factor,
+                CreatedOn = now
+            }), ct);
 
-            //await _context.SaveChangesAsync(ct);
+            await _context.SaveChangesAsync(ct);
         }
     }
 }
