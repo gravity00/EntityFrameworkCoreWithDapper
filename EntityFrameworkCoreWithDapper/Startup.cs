@@ -1,4 +1,6 @@
+using EntityFrameworkCoreWithDapper.Database;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EntityFrameworkCoreWithDapper
@@ -7,6 +9,11 @@ namespace EntityFrameworkCoreWithDapper
     {
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddDbContext<ApiDbContext>(o =>
+            {
+                o.UseSqlite("Data Source=EntityFrameworkCoreWithDapper;Mode=Memory;Cache=Shared");
+            });
+
             services.AddMvc();
 
             services.AddSwaggerGen();
@@ -14,6 +21,12 @@ namespace EntityFrameworkCoreWithDapper
 
         public void Configure(IApplicationBuilder app)
         {
+            using (var scope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope())
+            {
+                var ctx = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
+                ctx.Database.EnsureCreated();
+            }
+
             app.UseDeveloperExceptionPage();
 
             app.UseSwagger();
