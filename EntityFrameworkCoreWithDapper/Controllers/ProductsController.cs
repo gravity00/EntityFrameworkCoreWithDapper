@@ -22,29 +22,49 @@ namespace EntityFrameworkCoreWithDapper.Controllers
         [HttpGet]
         public async Task<IEnumerable<ProductModel>> GetAllAsync(CancellationToken ct)
         {
-            return await _context.Set<ProductEntity>().OrderBy(e => e.Code).Select(p => new ProductModel
-            {
-                Id = p.ExternalId,
-                Code = p.Code,
-                Name = p.Name,
-                Price = p.Price
-            }).ToListAsync(ct);
+            return await (
+                from p in _context.Set<ProductEntity>()
+                select new ProductModel
+                {
+                    Id = p.ExternalId,
+                    Code = p.Code,
+                    Name = p.Name,
+                    Price = _context
+                        .Set<PriceHistoryEntity>()
+                        .Where(ph => ph.ProductId == p.Id)
+                        .OrderByDescending(ph => ph.CreatedOn)
+                        .First()
+                        .Price
+                }
+            ).ToListAsync(ct);
         }
 
         [HttpPost]
         public async Task<CreateProductResultModel> CreateAsync([FromBody] CreateProductModel model, CancellationToken ct)
         {
+            await using var tx = await _context.Database.BeginTransactionAsync(ct);
+
             var externalId = Guid.NewGuid();
 
-            await _context.Set<ProductEntity>().AddAsync(new ProductEntity
+            var product = (await _context.Set<ProductEntity>().AddAsync(new ProductEntity
             {
                 ExternalId = externalId,
                 Code = model.Code,
-                Name = model.Name,
-                Price = model.Price
+                Name = model.Name
+            }, ct)).Entity;
+
+            await _context.SaveChangesAsync(ct);
+
+            await _context.Set<PriceHistoryEntity>().AddAsync(new PriceHistoryEntity
+            {
+                ProductId = product.Id,
+                Price = model.Price,
+                CreatedOn = DateTime.UtcNow
             }, ct);
 
             await _context.SaveChangesAsync(ct);
+
+            await tx.CommitAsync(ct);
 
             return new CreateProductResultModel
             {
@@ -55,14 +75,14 @@ namespace EntityFrameworkCoreWithDapper.Controllers
         [HttpPost("price/multiply")]
         public async Task MultiplyPricesAsync([FromBody] MultiplyProductsPriceModel model, CancellationToken ct)
         {
-            var products = await _context.Set<ProductEntity>().ToListAsync(ct);
+            //var products = await _context.Set<ProductEntity>().ToListAsync(ct);
 
-            foreach (var product in products)
-            {
-                product.Price *= model.Factor;
-            }
+            //foreach (var product in products)
+            //{
+            //    product.Price *= model.Factor;
+            //}
 
-            await _context.SaveChangesAsync(ct);
+            //await _context.SaveChangesAsync(ct);
         }
     }
 }
