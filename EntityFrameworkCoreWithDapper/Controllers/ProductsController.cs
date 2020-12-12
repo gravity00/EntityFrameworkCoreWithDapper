@@ -65,29 +65,4 @@ namespace EntityFrameworkCoreWithDapper.Controllers
             await _context.SaveChangesAsync(ct);
         }
     }
-
-    public class ProductModel
-    {
-        public Guid Id { get; set; }
-        public string Code { get; set; }
-        public string Name { get; set; }
-        public decimal Price { get; set; }
-    }
-
-    public class CreateProductModel
-    {
-        public string Code { get; set; }
-        public string Name { get; set; }
-        public decimal Price { get; set; }
-    }
-
-    public class CreateProductResultModel
-    {
-        public Guid Id { get; set; }
-    }
-
-    public class MultiplyProductsPriceModel
-    {
-        public decimal Factor { get; set; }
-    }
 }
