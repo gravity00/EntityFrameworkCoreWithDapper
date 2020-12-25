@@ -20,7 +20,7 @@ namespace EntityFrameworkCoreWithDapper.Controllers
         }
 
         [HttpGet]
-        public async Task<IEnumerable<ProductModel>> GetAllAsync(CancellationToken ct)
+        public async Task<IEnumerable<ProductModel>> GetAllAsync([FromQuery] int? skip, [FromQuery] int? take, CancellationToken ct)
         {
             return await (
                 from p in _context.Set<ProductEntity>()
@@ -36,7 +36,7 @@ namespace EntityFrameworkCoreWithDapper.Controllers
                         .First()
                         .Price
                 }
-            ).ToListAsync(ct);
+            ).OrderBy(p => p.Code).Skip(skip ?? 0).Take(take ?? 20).ToListAsync(ct);
         }
 
         [HttpPost]
