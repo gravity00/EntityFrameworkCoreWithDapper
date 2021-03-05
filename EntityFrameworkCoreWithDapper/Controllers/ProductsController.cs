@@ -45,24 +45,22 @@ namespace EntityFrameworkCoreWithDapper.Controllers
         {
             var externalId = Guid.NewGuid();
 
-            var product = new ProductEntity
+            await _sqlRunner.ExecuteAsync(ct, @"
+INSERT INTO Product (ExternalId, Code, Name)
+VALUES (@ExternalId, @Code, @Name);
+
+INSERT INTO PriceHistory (Price, CreatedOn, ProductId)
+SELECT @Price, @CreatedOn, Id
+FROM Product
+WHERE
+    rowid = last_insert_rowid();", new
             {
                 ExternalId = externalId,
-                Code = model.Code,
-                Name = model.Name,
-                PricesHistory =
-                {
-                    new PriceHistoryEntity
-                    {
-                        Price = model.Price,
-                        CreatedOn = DateTime.UtcNow
-                    }
-                }
-            };
-
-            await _context.Set<ProductEntity>().AddAsync(product, ct);
-
-            await _context.SaveChangesAsync(ct);
+                model.Code,
+                model.Name,
+                model.Price,
+                CreatedOn = DateTime.UtcNow
+            });
 
             return new CreateProductResultModel
             {
