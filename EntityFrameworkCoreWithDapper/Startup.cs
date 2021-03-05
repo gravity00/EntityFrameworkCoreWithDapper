@@ -9,6 +9,7 @@ namespace EntityFrameworkCoreWithDapper
     public class Startup
     {
         private const string ConnectionString = "Data Source=EntityFrameworkCoreWithDapper;Mode=Memory;Cache=Shared";
+        private static SqliteConnection keepAliveConnection;
 
         public void ConfigureServices(IServiceCollection services)
         {
@@ -24,7 +25,7 @@ namespace EntityFrameworkCoreWithDapper
 
         public void Configure(IApplicationBuilder app)
         {
-            var keepAliveConnection = new SqliteConnection(ConnectionString);
+            keepAliveConnection = new SqliteConnection(ConnectionString);
             keepAliveConnection.Open();
 
             using (var scope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope())
