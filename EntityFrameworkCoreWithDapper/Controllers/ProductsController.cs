@@ -29,9 +29,8 @@ namespace EntityFrameworkCoreWithDapper.Controllers
                     Id = p.ExternalId,
                     Code = p.Code,
                     Name = p.Name,
-                    Price = _context
-                        .Set<PriceHistoryEntity>()
-                        .Where(ph => ph.ProductId == p.Id)
+                    Price = p
+                        .PricesHistory
                         .OrderByDescending(ph => ph.CreatedOn)
                         .First()
                         .Price
@@ -42,29 +41,26 @@ namespace EntityFrameworkCoreWithDapper.Controllers
         [HttpPost]
         public async Task<CreateProductResultModel> CreateAsync([FromBody] CreateProductModel model, CancellationToken ct)
         {
-            await using var tx = await _context.Database.BeginTransactionAsync(ct);
-
             var externalId = Guid.NewGuid();
 
-            var product = (await _context.Set<ProductEntity>().AddAsync(new ProductEntity
+            var product = new ProductEntity
             {
                 ExternalId = externalId,
                 Code = model.Code,
-                Name = model.Name
-            }, ct)).Entity;
+                Name = model.Name,
+                PricesHistory =
+                {
+                    new PriceHistoryEntity
+                    {
+                        Price = model.Price,
+                        CreatedOn = DateTime.UtcNow
+                    }
+                }
+            };
+
+            await _context.Set<ProductEntity>().AddAsync(product, ct);
 
             await _context.SaveChangesAsync(ct);
-
-            await _context.Set<PriceHistoryEntity>().AddAsync(new PriceHistoryEntity
-            {
-                ProductId = product.Id,
-                Price = model.Price,
-                CreatedOn = DateTime.UtcNow
-            }, ct);
-
-            await _context.SaveChangesAsync(ct);
-
-            await tx.CommitAsync(ct);
 
             return new CreateProductResultModel
             {
@@ -75,29 +71,43 @@ namespace EntityFrameworkCoreWithDapper.Controllers
         [HttpPost("price/multiply")]
         public async Task MultiplyPricesAsync([FromBody] MultiplyProductsPriceModel model, CancellationToken ct)
         {
-            var pricesHistory = await (
-                from p in _context.Set<ProductEntity>()
-                select new
-                {
-                    ProductId = p.Id,
-                    _context
-                        .Set<PriceHistoryEntity>()
-                        .Where(ph => ph.ProductId == p.Id)
-                        .OrderByDescending(ph => ph.CreatedOn)
-                        .First()
-                        .Price
-                }
-            ).ToListAsync(ct);
-
             var now = DateTime.UtcNow;
-            await _context.Set<PriceHistoryEntity>().AddRangeAsync(pricesHistory.Select(ph => new PriceHistoryEntity
-            {
-                ProductId = ph.ProductId,
-                Price = ph.Price * model.Factor,
-                CreatedOn = now
-            }), ct);
 
-            await _context.SaveChangesAsync(ct);
+            await using var tx = await _context.Database.BeginTransactionAsync(ct);
+
+            const int batchSize = 10;
+            var skip = 0;
+            List<PriceHistoryEntity> pricesHistory;
+            do
+            {
+                pricesHistory = await _context
+                    .Set<ProductEntity>()
+                    .OrderBy(p => p.Id)
+                    .Skip(skip)
+                    .Take(batchSize)
+                    .Select(p => p.PricesHistory
+                        .OrderByDescending(ph => ph.CreatedOn)
+                        .First())
+                    .ToListAsync(ct);
+
+                if (pricesHistory.Count > 0)
+                {
+                    await _context
+                        .Set<PriceHistoryEntity>()
+                        .AddRangeAsync(pricesHistory.Select(ph => new PriceHistoryEntity
+                        {
+                            Product = ph.Product,
+                            Price = ph.Price * model.Factor,
+                            CreatedOn = now
+                        }), ct);
+
+                    await _context.SaveChangesAsync(ct);
+                }
+
+                skip += pricesHistory.Count;
+            } while (pricesHistory.Count > 0);
+
+            await tx.CommitAsync(ct);
         }
     }
 }

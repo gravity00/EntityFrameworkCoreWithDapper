@@ -46,9 +46,8 @@ namespace EntityFrameworkCoreWithDapper.Database
                 cfg.Property(e => e.Id)
                     .IsRequired()
                     .ValueGeneratedOnAdd();
-                cfg.HasOne<ProductEntity>()
-                    .WithMany()
-                    .HasForeignKey(e => e.ProductId)
+                cfg.HasOne(e => e.Product)
+                    .WithMany(p => p.PricesHistory)
                     .IsRequired();
                 cfg.Property(e => e.Price)
                     .IsRequired();
