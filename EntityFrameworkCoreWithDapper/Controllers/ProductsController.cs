@@ -13,10 +13,12 @@ namespace EntityFrameworkCoreWithDapper.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly ApiDbContext _context;
+        private readonly ApiDbSqlRunner _sqlRunner;
 
-        public ProductsController(ApiDbContext context)
+        public ProductsController(ApiDbContext context, ApiDbSqlRunner sqlRunner)
         {
             _context = context;
+            _sqlRunner = sqlRunner;
         }
 
         [HttpGet]
