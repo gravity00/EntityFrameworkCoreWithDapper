@@ -42,7 +42,7 @@ namespace EntityFrameworkCoreWithDapper.Database
             LogCommand(cmd);
 
             var connection = _context.Database.GetDbConnection();
-            return await connection.ExecuteAsync(text, cmd);
+            return await connection.ExecuteAsync(cmd);
         }
 
         public async Task<IEnumerable<T>> QueryAsync<T>(
