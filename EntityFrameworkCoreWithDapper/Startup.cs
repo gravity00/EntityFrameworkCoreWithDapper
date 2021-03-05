@@ -16,7 +16,7 @@ namespace EntityFrameworkCoreWithDapper
             services.AddDbContext<ApiDbContext>(o =>
             {
                 o.UseSqlite(ConnectionString);
-            }).AddScoped<ApiDbSqlRunner>();
+            }).AddTransient<ApiDbSqlRunner>();
 
             services.AddMvc();
 
