@@ -56,6 +56,8 @@ namespace EntityFrameworkCoreWithDapper.Controllers
         {
             var externalId = Guid.NewGuid();
 
+            await using var tx = await _context.Database.BeginTransactionAsync(ct);
+
             await _sqlRunner.ExecuteAsync(ct, @"
 INSERT INTO Product (ExternalId, Code, Name)
 VALUES (@ExternalId, @Code, @Name);
@@ -72,6 +74,8 @@ WHERE
                 model.Price,
                 CreatedOn = DateTime.UtcNow
             });
+
+            await tx.CommitAsync(ct);
 
             return new CreateProductResultModel
             {
