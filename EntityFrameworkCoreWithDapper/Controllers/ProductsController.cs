@@ -25,19 +25,30 @@ namespace EntityFrameworkCoreWithDapper.Controllers
         public async Task<IEnumerable<ProductModel>> GetAllAsync([FromQuery] int? skip, [FromQuery] int? take, CancellationToken ct)
         {
             return await (
-                from p in _context.Set<ProductEntity>()
-                select new ProductModel
+                    from p in _context.Set<ProductEntity>()
+                    select new
+                    {
+                        Id = p.ExternalId,
+                        p.Code,
+                        p.Name,
+                        MostRecentPriceHistory = p
+                            .PricesHistory
+                            .OrderByDescending(ph => ph.CreatedOn)
+                            .First()
+                    }
+                )
+                .OrderBy(p => p.Code)
+                .Skip(skip ?? 0)
+                .Take(take ?? 20)
+                .Select(p => new ProductModel
                 {
-                    Id = p.ExternalId,
+                    Id = p.Id,
                     Code = p.Code,
                     Name = p.Name,
-                    Price = p
-                        .PricesHistory
-                        .OrderByDescending(ph => ph.CreatedOn)
-                        .First()
-                        .Price
-                }
-            ).OrderBy(p => p.Code).Skip(skip ?? 0).Take(take ?? 20).ToListAsync(ct);
+                    Price = p.MostRecentPriceHistory.Price,
+                    PriceChangedOn = p.MostRecentPriceHistory.CreatedOn
+                })
+                .ToListAsync(ct);
         }
 
         [HttpPost]
@@ -86,6 +97,8 @@ WHERE
                     .Skip(skip)
                     .Take(batchSize)
                     .Select(p => p.PricesHistory
+                        .AsQueryable()
+                        .Include(ph => ph.Product)
                         .OrderByDescending(ph => ph.CreatedOn)
                         .First())
                     .ToListAsync(ct);
