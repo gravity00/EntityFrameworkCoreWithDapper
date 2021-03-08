@@ -1,3 +1,6 @@
+using System;
+using System.Data;
+using Dapper;
 using EntityFrameworkCoreWithDapper.Database;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Data.Sqlite;
@@ -13,6 +16,8 @@ namespace EntityFrameworkCoreWithDapper
 
         public void ConfigureServices(IServiceCollection services)
         {
+            SqlMapper.AddTypeHandler(new GuidTypeHandler());
+
             services.AddDbContext<ApiDbContext>(o =>
             {
                 o.UseSqlite(ConnectionString);
@@ -49,6 +54,13 @@ namespace EntityFrameworkCoreWithDapper
             {
                 endpoints.MapControllers();
             });
+        }
+
+        private class GuidTypeHandler : SqlMapper.TypeHandler<Guid>
+        {
+            public override void SetValue(IDbDataParameter parameter, Guid value) => parameter.Value = value;
+
+            public override Guid Parse(object value) => Guid.Parse((string) value);
         }
     }
 }

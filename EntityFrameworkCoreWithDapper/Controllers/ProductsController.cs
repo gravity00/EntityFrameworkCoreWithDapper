@@ -22,31 +22,27 @@ namespace EntityFrameworkCoreWithDapper.Controllers
         [HttpGet]
         public async Task<IEnumerable<ProductModel>> GetAllAsync([FromQuery] int? skip, [FromQuery] int? take, CancellationToken ct)
         {
-            return await (
-                    from p in _context.Set<ProductEntity>()
-                    select new
-                    {
-                        Id = p.ExternalId,
-                        p.Code,
-                        p.Name,
-                        MostRecentPriceHistory = p
-                            .PricesHistory
-                            .OrderByDescending(ph => ph.CreatedOn)
-                            .First()
-                    }
-                )
-                .OrderBy(p => p.Code)
-                .Skip(skip ?? 0)
-                .Take(take ?? 20)
-                .Select(p => new ProductModel
-                {
-                    Id = p.Id,
-                    Code = p.Code,
-                    Name = p.Name,
-                    Price = p.MostRecentPriceHistory.Price,
-                    PriceChangedOn = p.MostRecentPriceHistory.CreatedOn
-                })
-                .ToListAsync(ct);
+            return await _context.QueryAsync<ProductModel>(ct, @"
+SELECT p.ExternalId as Id, p.Code, p.Name, lph.Price, lph.CreatedOn as PriceChangedOn
+FROM (
+    SELECT Id, ExternalId, Code, Name, RowId
+    FROM Product
+    ORDER BY Code DESC
+    LIMIT @Take OFFSET @Skip
+) p
+INNER JOIN (
+    SELECT ph.ProductId, ph.Price, ph.CreatedOn
+    FROM PriceHistory ph
+    INNER JOIN (
+        SELECT MAX(RowId) RowId
+        FROM PriceHistory
+        GROUP BY ProductId
+    ) phLatest ON ph.RowId = phLatest.RowId
+) lph ON p.Id = lph.ProductId", new
+            {
+                Skip = skip ?? 0,
+                Take = take ?? 20
+            });
         }
 
         [HttpPost]
