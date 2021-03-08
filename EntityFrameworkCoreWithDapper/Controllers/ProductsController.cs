@@ -13,12 +13,10 @@ namespace EntityFrameworkCoreWithDapper.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly ApiDbContext _context;
-        private readonly ApiDbSqlRunner _sqlRunner;
 
-        public ProductsController(ApiDbContext context, ApiDbSqlRunner sqlRunner)
+        public ProductsController(ApiDbContext context)
         {
             _context = context;
-            _sqlRunner = sqlRunner;
         }
 
         [HttpGet]
@@ -58,7 +56,7 @@ namespace EntityFrameworkCoreWithDapper.Controllers
 
             await using var tx = await _context.Database.BeginTransactionAsync(ct);
 
-            await _sqlRunner.ExecuteAsync(ct, @"
+            await _context.ExecuteAsync(ct, @"
 INSERT INTO Product (ExternalId, Code, Name)
 VALUES (@ExternalId, @Code, @Name);
 
