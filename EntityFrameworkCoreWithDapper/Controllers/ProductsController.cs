@@ -76,49 +76,5 @@ WHERE
                 Id = externalId
             };
         }
-
-        [HttpPost("price/multiply")]
-        public async Task MultiplyPricesAsync([FromBody] MultiplyProductsPriceModel model, CancellationToken ct)
-        {
-            var now = DateTime.UtcNow;
-
-            await using var tx = await _context.Database.BeginTransactionAsync(ct);
-
-            const int batchSize = 10;
-            var skip = 0;
-            List<PriceHistoryEntity> pricesHistory;
-            do
-            {
-                pricesHistory = await _context
-                    .Set<ProductEntity>()
-                    .OrderBy(p => p.Id)
-                    .Skip(skip)
-                    .Take(batchSize)
-                    .Select(p => p.PricesHistory
-                        .AsQueryable()
-                        .Include(ph => ph.Product)
-                        .OrderByDescending(ph => ph.CreatedOn)
-                        .First())
-                    .ToListAsync(ct);
-
-                if (pricesHistory.Count > 0)
-                {
-                    await _context
-                        .Set<PriceHistoryEntity>()
-                        .AddRangeAsync(pricesHistory.Select(ph => new PriceHistoryEntity
-                        {
-                            Product = ph.Product,
-                            Price = ph.Price * model.Factor,
-                            CreatedOn = now
-                        }), ct);
-
-                    await _context.SaveChangesAsync(ct);
-                }
-
-                skip += pricesHistory.Count;
-            } while (pricesHistory.Count > 0);
-
-            await tx.CommitAsync(ct);
-        }
     }
 }
